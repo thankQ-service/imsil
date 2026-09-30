@@ -14,7 +14,17 @@
     <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
-        body { font-family: 'Pretendard', sans-serif; background-color: #f8fafc; }
+        /* 텍스트 선택 방지 및 드래그 방지 */
+        body { 
+            font-family: 'Pretendard', sans-serif; 
+            background-color: #f8fafc; 
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        input, textarea { -webkit-user-select: auto; -moz-user-select: auto; -ms-user-select: auto; user-select: auto; }
+        
         .site-card { transition: all 0.2s ease-in-out; border: 2px solid transparent; }
         .site-card:hover { transform: translateY(-3px); box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.1); }
         .status-badge { transition: background-color 0.2s; }
@@ -29,9 +39,20 @@
             from { opacity: 0; transform: scale(0.95) translateY(10px); } 
             to { opacity: 1; transform: scale(1) translateY(0); } 
         }
-        
-        .accent-orange { accent-color: #f97316; }
     </style>
+    
+    <script>
+        // 개발자 도구 단축키 및 우클릭 방지 시스템
+        document.addEventListener('contextmenu', e => e.preventDefault());
+        document.addEventListener('keydown', e => {
+            if (e.keyCode === 123 || // F12
+               (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74)) || // Ctrl+Shift+I / J
+               (e.ctrlKey && e.keyCode === 85)) { // Ctrl+U
+                e.preventDefault();
+                return false;
+            }
+        });
+    </script>
 </head>
 <body class="text-gray-800 h-screen flex flex-col overflow-hidden">
 
@@ -39,7 +60,7 @@
         <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
                 <!-- 로고 영역 -->
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-3 cursor-pointer" onclick="window.checkAdmin()">
                     <img src="https://i.postimg.cc/s2CQ8wzb/image-(27).png" alt="땡큐캠핑" class="h-8 object-contain">
                     <div class="ml-2 border-l-2 border-gray-200 pl-3">
                         <h1 class="text-lg font-bold text-gray-900 tracking-tight">임실 캠핑오개 <span class="text-orange-500 font-extrabold">예약관리</span></h1>
@@ -47,6 +68,7 @@
                     <div id="cloudStatus" class="ml-4 text-xs font-bold text-gray-400 flex items-center gap-1">
                         <i class="fa-solid fa-cloud-arrow-down"></i> 연결 중...
                     </div>
+                    <div id="adminBadge" class="hidden ml-2 px-2 py-0.5 bg-red-100 text-red-600 text-[10px] font-bold rounded-full">관리자 모드</div>
                 </div>
                 <!-- 우측 컨트롤 -->
                 <div class="flex items-center gap-3">
@@ -54,7 +76,7 @@
                         <input type="text" id="searchInput" placeholder="예약자명, 연락처 검색..." class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 w-64 transition-all bg-gray-50 shadow-inner">
                         <i class="fa-solid fa-search absolute left-3.5 top-2.5 text-gray-400 text-sm"></i>
                     </div>
-                    <button class="bg-white border border-gray-300 p-2 rounded-lg text-gray-600 hover:bg-gray-50 hover:text-orange-500 transition-colors shadow-sm" onclick="window.requestResetData()" title="데이터 초기화">
+                    <button class="bg-white border border-gray-300 p-2 rounded-lg text-gray-600 hover:bg-gray-50 hover:text-red-500 transition-colors shadow-sm" onclick="if(window.checkAdmin()) window.requestResetData()" title="데이터 초기화">
                         <i class="fa-solid fa-rotate-right"></i>
                     </button>
                 </div>
@@ -98,7 +120,7 @@
                     </div>
                     <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between">
                         <div>
-                            <p class="text-sm text-gray-500 font-medium mb-1">예약 가능 (잔여)</p>
+                            <p class="text-sm text-gray-500 font-medium mb-1">전체 예약 가능 (잔여)</p>
                             <h3 class="text-3xl font-bold text-teal-600" id="stat-available">0<span class="text-lg font-normal text-gray-500 ml-1">개</span></h3>
                         </div>
                         <div class="w-12 h-12 bg-teal-50 rounded-xl flex items-center justify-center text-teal-500 text-xl">
@@ -114,7 +136,7 @@
                             <!-- Tabs injected via JS -->
                         </div>
                         
-                        <div class="flex items-center gap-4 text-xs font-semibold bg-gray-50 px-4 py-2 rounded-lg">
+                        <div class="flex items-center gap-4 text-xs font-semibold bg-gray-50 px-4 py-2 rounded-lg shrink-0">
                             <div class="flex items-center gap-1.5 text-gray-600"><span class="w-3 h-3 rounded-full bg-white border-2 border-gray-300"></span>빈자리</div>
                             <div class="flex items-center gap-1.5 text-gray-600"><span class="w-3 h-3 rounded-full bg-gray-100 border-2 border-gray-400"></span>결제대기</div>
                             <div class="flex items-center gap-1.5 text-gray-600"><span class="w-3 h-3 rounded-full bg-orange-50 border-2 border-orange-500"></span>결제완료</div>
@@ -133,10 +155,12 @@
                     <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-white">
                         <h2 class="text-lg font-bold text-gray-800"><span id="currentZoneTitle" class="text-orange-600">전체</span> 예약 리스트</h2>
                         <div class="flex gap-2">
-                            <label for="excelUploadInput" class="cursor-pointer text-sm bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2 shadow-sm font-medium">
+                            <label onclick="if(!window.checkAdmin()) { event.preventDefault(); return false; }" for="excelUploadInput" class="cursor-pointer text-sm bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2 shadow-sm font-medium">
                                 <i class="fa-solid fa-file-arrow-up"></i> 엑셀 업로드 (동기화)
                             </label>
                             <input type="file" id="excelUploadInput" class="hidden" accept=".xlsx, .xls, .csv" onchange="window.handleExcelUpload(event)">
+                            
+                            <!-- 누구나 엑셀 다운로드 가능 -->
                             <button onclick="window.exportToCSV()" class="text-sm bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2 shadow-sm font-medium">
                                 <i class="fa-solid fa-file-csv"></i> 엑셀 다운로드
                             </button>
@@ -164,7 +188,7 @@
         </main>
     </div>
 
-    <!-- Reservation Modal -->
+    <!-- Reservation Modal (Admin Only) -->
     <div id="resModal" class="fixed inset-0 z-40 hidden flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity" onclick="window.closeModal()"></div>
         <div class="modal-enter relative bg-white rounded-2xl text-left shadow-2xl flex flex-col w-full max-w-2xl max-h-[90vh] overflow-hidden">
@@ -182,8 +206,8 @@
                     <!-- Header / Site ID & Status -->
                     <div class="flex items-center justify-between pb-4 border-b border-gray-100">
                         <div class="flex items-center gap-3">
-                            <div class="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center border-2 border-orange-200">
-                                <span class="text-xl font-black text-orange-600" id="modalSiteId">A-01</span>
+                            <div class="w-16 h-12 shrink-0 bg-orange-100 rounded-xl flex items-center justify-center border-2 border-orange-200 overflow-hidden">
+                                <span class="text-lg font-black text-orange-600 truncate px-1" id="modalSiteId">A-01</span>
                             </div>
                             <div>
                                 <p class="text-xs text-gray-500 font-bold uppercase tracking-wider mb-0.5">SITE NO.</p>
@@ -236,7 +260,7 @@
                         <div>
                             <label class="block text-xs font-bold text-gray-700 mb-1.5">결제 금액 <span class="text-red-500">*</span></label>
                             <div class="relative">
-                                <input type="number" id="formPrice" required class="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-orange-500 outline-none text-right pr-8 font-bold text-gray-800">
+                                <input type="text" id="formPrice" required oninput="this.value = this.value.replace(/[^0-9]/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',')" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-orange-500 outline-none text-right pr-8 font-bold text-gray-800">
                                 <span class="absolute right-3 top-2.5 text-gray-500 font-bold">원</span>
                             </div>
                         </div>
@@ -271,9 +295,14 @@
 
                     <!-- History Log -->
                     <div class="pt-4 border-t border-gray-100">
-                        <h4 class="text-xs font-bold text-gray-500 mb-2 flex items-center gap-1.5 uppercase tracking-wider">
-                            <i class="fa-solid fa-clock-rotate-left"></i> 예약 히스토리 로그
-                        </h4>
+                        <div class="flex items-center justify-between mb-2">
+                            <h4 class="text-xs font-bold text-gray-500 flex items-center gap-1.5 uppercase tracking-wider">
+                                <i class="fa-solid fa-clock-rotate-left"></i> 예약 히스토리 로그
+                            </h4>
+                            <button type="button" onclick="window.clearSiteHistory()" class="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded text-xs font-bold transition-colors">
+                                <i class="fa-solid fa-trash-can"></i> 로그 비우기
+                            </button>
+                        </div>
                         <div id="modalHistoryLogs" class="bg-gray-50 rounded-lg p-3 max-h-32 overflow-y-auto text-xs space-y-2 border border-gray-100">
                             <!-- Logs injected here -->
                             <div class="text-gray-400 text-center py-2">기록이 없습니다.</div>
@@ -283,7 +312,7 @@
                 
                 <div class="bg-gray-50 px-6 py-4 flex items-center justify-between border-t border-gray-200 shrink-0">
                     <button type="button" id="btnCancelRes" onclick="window.requestCancelReservation()" class="text-red-600 hover:bg-red-50 hover:text-red-700 text-sm font-bold px-4 py-2 rounded-lg transition-colors hidden flex items-center gap-1.5 border border-transparent hover:border-red-100">
-                        <i class="fa-solid fa-trash-can"></i> 예약 취소
+                        <i class="fa-solid fa-ban"></i> 예약 취소처리
                     </button>
                     <div class="flex gap-2 ml-auto">
                         <button type="button" onclick="window.closeModal()" class="px-5 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-700 hover:bg-gray-50 shadow-sm transition-colors">
@@ -323,8 +352,8 @@
         import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // 사용자 제공 Firebase Config
-        const userFirebaseConfig = {
+        // Firebase Config (고객 제공)
+        const firebaseConfig = {
             apiKey: "AIzaSyDRN-FnNZ0iiLouZckJcC-v6gLwJXIx6S0",
             authDomain: "imsil-1d975.firebaseapp.com",
             projectId: "imsil-1d975",
@@ -334,8 +363,6 @@
             measurementId: "G-KFZ9XWX8RS"
         };
         
-        // 환경 변수 덮어쓰기 로직 (보안 및 샌드박스 호환성)
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : userFirebaseConfig;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'imsil-admin-app';
         
         const app = initializeApp(firebaseConfig);
@@ -367,20 +394,45 @@
         let currentEditingSiteId = null;
         let dialogCallback = null;
         let userId = null;
+        
+        // 권한 분리 관리 (Admin 보호)
+        let isAdmin = false;
+        const ADMIN_PWD = "Net0521";
+
+        window.checkAdmin = function() {
+            if (isAdmin) return true;
+            const pwd = prompt("해당 기능은 마스터 권한이 필요합니다.\n비밀번호를 입력하세요.");
+            if (pwd === ADMIN_PWD) {
+                isAdmin = true;
+                document.getElementById('adminBadge').classList.remove('hidden');
+                return true;
+            } else if (pwd !== null) {
+                alert("비밀번호가 일치하지 않습니다. (읽기 전용 모드)");
+            }
+            return false;
+        };
 
         // --- STREAMING_CHUNK:Firebase 인증 및 실시간 동기화 설정 중... ---
+        // 커스텀 DB 문서 경로 (고객님 Firebase에 맞게 단순화)
+        const DB_COLLECTION = 'camping';
+        const DB_DOCUMENT = 'siteData';
+
         async function initFirebase() {
             try {
                 if (typeof __initial_auth_token !== 'undefined') {
-                    await signInWithCustomToken(auth, __initial_auth_token);
+                    try {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } catch (tokenError) {
+                        console.warn("프로젝트 토큰 불일치 발생. 설정하신 개인 Firebase 익명 로그인으로 전환합니다.", tokenError);
+                        await signInAnonymously(auth);
+                    }
                 } else {
                     await signInAnonymously(auth);
                 }
                 userId = auth.currentUser?.uid;
                 if (!userId) return;
                 
-                // Firestore 실시간 리스너 연결 (public/data 경로 사용으로 여러 기기 호환성 확보)
-                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'campingData', 'siteData');
+                const docRef = doc(db, DB_COLLECTION, DB_DOCUMENT);
                 onSnapshot(docRef, (docSnap) => {
                     if (docSnap.exists()) {
                         siteData = docSnap.data();
@@ -388,39 +440,47 @@
                     } else {
                         // 초기 데이터 세팅
                         allSites.forEach(s => { siteData[s.id] = { current: null, history: [] }; });
-                        // 일부 샘플 데이터 주입
-                        setSampleRes('A-02', '김캠핑', '010-1111-2222', '땡큐캠핑', 'completed', 60000, 4, '골든리트리버', 1, '조기 입실 요청');
-                        setSampleRes('B-05', '이멍멍', '010-3333-4444', '스노우라인', 'pending', 50000, 2, '말티즈', 2, '');
                         saveStateToFirebase();
                     }
                     renderTabs();
                     updateUI();
                 }, (error) => {
                     console.error("Firestore error:", error);
-                    document.getElementById('cloudStatus').innerHTML = `<i class="fa-solid fa-cloud-xmark text-red-500"></i> 연결 끊김`;
+                    if (error.code === 'permission-denied') {
+                        document.getElementById('cloudStatus').innerHTML = `<i class="fa-solid fa-triangle-exclamation text-red-500"></i> 접근 차단 (기간만료 등)`;
+                        window.openConfirmDialog('접근 권한 없음 (또는 6개월 기간 만료)', '데이터베이스 접근 권한이 없거나 <b>6개월 사용 기간이 만료</b>되었습니다.<br>Firebase 콘솔에서 보안 규칙(Rules)의 만료 날짜를 연장해주세요.', false);
+                    } else {
+                        document.getElementById('cloudStatus').innerHTML = `<i class="fa-solid fa-cloud-xmark text-red-500"></i> 연결 끊김`;
+                    }
                 });
             } catch (error) {
                 console.error("Firebase auth failed:", error);
             }
         }
 
-        function setSampleRes(id, name, phone, channel, status, price, people, dogBreed, dogCount, memo) {
-            const now = new Date().toLocaleString('ko-KR');
-            siteData[id].current = { name, phone, channel, status, price, people, dogBreed, dogCount, memo };
-            siteData[id].history.push({ time: now, action: '신규예약', msg: `[신규] ${name} (${channel})` });
-        }
-
         async function saveStateToFirebase() {
             if (!userId) return;
             try {
                 document.getElementById('cloudStatus').innerHTML = `<i class="fa-solid fa-arrows-rotate fa-spin text-orange-500"></i> 저장 중...`;
-                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'campingData', 'siteData');
+                const docRef = doc(db, DB_COLLECTION, DB_DOCUMENT);
                 await setDoc(docRef, siteData);
                 document.getElementById('cloudStatus').innerHTML = `<i class="fa-solid fa-cloud-check text-green-500"></i> 실시간 연동됨`;
             } catch (error) {
                 console.error("Error saving state:", error);
+                if (error.code === 'permission-denied') {
+                    window.openConfirmDialog('저장 실패 (기간 만료)', '6개월 사용 기간이 만료되었거나 권한이 없습니다.<br>Firebase 콘솔의 Firestore 보안 규칙을 확인해주세요.', false);
+                }
                 document.getElementById('cloudStatus').innerHTML = `<i class="fa-solid fa-cloud-xmark text-red-500"></i> 저장 실패`;
             }
+        }
+
+        // 채널별 색상 뱃지 헬퍼
+        function getChannelBadge(channel) {
+            if(channel === '땡큐캠핑') return `<span class="px-1.5 py-0.5 bg-[#f97316] text-white text-[10px] rounded font-bold">땡큐캠핑</span>`;
+            if(channel === '스노우라인') return `<span class="px-1.5 py-0.5 bg-slate-700 text-white text-[10px] rounded font-bold">스노우라인</span>`;
+            if(channel === '캠핏') return `<span class="px-1.5 py-0.5 bg-[#14b8a6] text-white text-[10px] rounded font-bold">캠핏</span>`;
+            if(channel === '야놀자') return `<span class="px-1.5 py-0.5 bg-[#ec4899] text-white text-[10px] rounded font-bold">야놀자</span>`;
+            return `<span class="px-1.5 py-0.5 bg-gray-400 text-white text-[10px] rounded font-bold">${channel}</span>`;
         }
 
         // --- STREAMING_CHUNK:UI 업데이트 및 렌더링 로직 ---
@@ -440,6 +500,15 @@
             document.getElementById('stat-booked').innerHTML = `${booked}<span class="text-sm font-normal text-gray-500 ml-1">개</span>`;
             document.getElementById('stat-pending').innerHTML = `${pending}<span class="text-sm font-normal text-gray-500 ml-1">개</span>`;
             document.getElementById('stat-available').innerHTML = `${available}<span class="text-sm font-normal text-gray-500 ml-1">개</span>`;
+
+            // 탭에 잔여 숫자 갱신
+            ZONES.forEach(zone => {
+                if (zone.id === 'ALL') return;
+                const zoneSites = allSites.filter(s => s.zoneId === zone.id);
+                const availInZone = zoneSites.filter(s => !siteData[s.id]?.current).length;
+                const countSpan = document.getElementById(`tab-count-${zone.id}`);
+                if (countSpan) countSpan.innerText = `(잔여 ${availInZone})`;
+            });
         }
 
         function renderTabs() {
@@ -453,7 +522,10 @@
                     ? 'bg-orange-600 text-white border-orange-600 shadow-md transform scale-105' 
                     : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-orange-500'
                 }`;
-                let countStr = zone.count > 0 ? ` <span class="text-xs opacity-80 font-normal">(${zone.count})</span>` : '';
+                // 잔여 표시할 span 준비
+                let countStr = zone.count > 0 ? ` <span class="text-[11px] opacity-90 font-medium ml-1 text-orange-200" id="tab-count-${zone.id}"></span>` : '';
+                if (!isActive) countStr = countStr.replace('text-orange-200', 'text-gray-400');
+                
                 btn.innerHTML = `${zone.name}${countStr}`;
                 btn.onclick = () => {
                     currentZoneFilter = zone.id;
@@ -463,6 +535,8 @@
                 };
                 container.appendChild(btn);
             });
+            // 탭 렌더링 직후 카운트 채우기 위해 호출
+            updateStats();
         }
 
         function updateUI() {
@@ -499,7 +573,8 @@
                 const res = data.current;
                 
                 const el = document.createElement('div');
-                el.onclick = () => window.openModal(site.id);
+                // 관리자 체크 (비밀번호 입력 시에만 모달 오픈)
+                el.onclick = () => { if(window.checkAdmin()) window.openModal(site.id); };
 
                 if(!res) {
                     el.className = 'site-card cursor-pointer rounded-xl bg-white p-3 flex flex-col justify-between h-28 relative overflow-hidden group border-gray-200 hover:border-teal-400 shadow-sm';
@@ -516,10 +591,7 @@
                     const bgClass = isPending ? 'bg-gray-50 border-gray-300' : 'bg-orange-50 border-orange-300';
                     const nameColor = isPending ? 'text-gray-700' : 'text-orange-900';
                     
-                    let chBadge = '';
-                    if(res.channel === '땡큐캠핑') chBadge = '<span class="px-1.5 py-0.5 bg-[#f97316] text-white text-[10px] rounded font-bold">땡큐</span>';
-                    else if(res.channel === '스노우라인') chBadge = '<span class="px-1.5 py-0.5 bg-slate-700 text-white text-[10px] rounded font-bold">스노</span>';
-                    else chBadge = `<span class="px-1.5 py-0.5 bg-gray-200 text-gray-600 text-[10px] rounded font-bold">${res.channel.substring(0,2)}</span>`;
+                    let chBadge = getChannelBadge(res.channel);
 
                     el.className = `site-card cursor-pointer rounded-xl p-3 flex flex-col justify-between h-28 relative overflow-hidden shadow-sm ${bgClass}`;
                     el.innerHTML = `
@@ -555,7 +627,13 @@
                 const res = data.current;
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-orange-50/50 transition-colors cursor-pointer border-b border-gray-100 last:border-0';
-                tr.onclick = (e) => { if(!e.target.closest('button')) window.openModal(site.id); };
+                
+                // 관리자 체크 (버튼 아닌 행 클릭시)
+                tr.onclick = (e) => { 
+                    if(!e.target.closest('button')) {
+                        if(window.checkAdmin()) window.openModal(site.id); 
+                    }
+                };
                 
                 if(!res) {
                     tr.innerHTML = `
@@ -565,13 +643,15 @@
                         <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-300">-</td>
                         <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-300">-</td>
                         <td class="px-6 py-3 whitespace-nowrap text-right text-sm font-medium">
-                            <button onclick="window.openModal('${site.id}'); event.stopPropagation();" class="text-teal-600 hover:text-teal-900 bg-teal-50 px-3 py-1.5 rounded-md border border-teal-200 text-xs font-bold transition-colors">예약등록</button>
+                            <button onclick="if(window.checkAdmin()) { window.openModal('${site.id}'); event.stopPropagation(); }" class="text-teal-600 hover:text-teal-900 bg-teal-50 px-3 py-1.5 rounded-md border border-teal-200 text-xs font-bold transition-colors">예약등록</button>
                         </td>
                     `;
                 } else {
                     const isPending = res.status === 'pending';
                     const statusKor = isPending ? '결제대기' : '결제완료';
                     const statusColor = isPending ? 'bg-gray-100 text-gray-700' : 'bg-orange-100 text-orange-700';
+                    const priceFormatted = (res.price || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                    
                     tr.innerHTML = `
                         <td class="px-6 py-3 whitespace-nowrap">
                             <span class="font-bold text-gray-900 text-base">${site.name}</span>
@@ -580,7 +660,7 @@
                         <td class="px-6 py-3 whitespace-nowrap">
                             <div class="flex flex-col gap-1 items-start">
                                 <span class="px-2 py-0.5 inline-flex text-xs font-bold rounded ${statusColor}">${statusKor}</span>
-                                <span class="text-xs font-medium text-gray-500">${res.channel}</span>
+                                ${getChannelBadge(res.channel)}
                             </div>
                         </td>
                         <td class="px-6 py-3 whitespace-nowrap">
@@ -592,10 +672,10 @@
                             <div class="text-xs text-gray-500 font-medium mt-0.5">성인 등 ${res.people}명</div>
                         </td>
                         <td class="px-6 py-3 whitespace-nowrap">
-                            <div class="text-sm font-bold text-gray-800">${res.price.toLocaleString()}원</div>
+                            <div class="text-sm font-bold text-gray-800">${priceFormatted}원</div>
                         </td>
                         <td class="px-6 py-3 whitespace-nowrap text-right text-sm font-medium">
-                            <button onclick="window.openModal('${site.id}'); event.stopPropagation();" class="text-orange-600 hover:text-orange-900 bg-orange-50 px-3 py-1.5 rounded-md border border-orange-200 text-xs font-bold transition-colors">상세관리</button>
+                            <button onclick="if(window.checkAdmin()) { window.openModal('${site.id}'); event.stopPropagation(); }" class="text-orange-600 hover:text-orange-900 bg-orange-50 px-3 py-1.5 rounded-md border border-orange-200 text-xs font-bold transition-colors">상세관리</button>
                         </td>
                     `;
                 }
@@ -623,7 +703,8 @@
             
             document.getElementById('formName').value = res ? res.name : '';
             document.getElementById('formPhone').value = res ? res.phone : '';
-            document.getElementById('formPrice').value = res ? res.price : '';
+            // 콤마 포맷팅해서 입력
+            document.getElementById('formPrice').value = res ? (res.price || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '';
             document.getElementById('formPeople').value = res ? res.people : '2';
             document.getElementById('formDogBreed').value = res ? res.dogBreed : '';
             document.getElementById('formDogCount').value = res ? res.dogCount : '1';
@@ -669,7 +750,8 @@
             const newRes = {
                 name: document.getElementById('formName').value,
                 phone: document.getElementById('formPhone').value,
-                price: parseInt(document.getElementById('formPrice').value, 10),
+                // 저장 시 콤마 제거 후 숫자로 파싱
+                price: parseInt(document.getElementById('formPrice').value.replace(/,/g, ''), 10) || 0,
                 people: parseInt(document.getElementById('formPeople').value, 10),
                 dogBreed: document.getElementById('formDogBreed').value,
                 dogCount: parseInt(document.getElementById('formDogCount').value, 10),
@@ -714,6 +796,23 @@
                 window.openConfirmDialog('성공', '예약이 취소되었습니다.', false);
             }
         }
+
+        // 특정 사이트 로그 비우기
+        window.clearSiteHistory = function() {
+            if(!currentEditingSiteId) return;
+            window.openConfirmDialog(
+                '로그 비우기',
+                `<span class="text-red-500 font-bold">해당 사이트의 모든 히스토리 로그를 영구 삭제하시겠습니까?</span><br><span class="text-xs text-gray-500 mt-1 block">이 작업은 복구할 수 없습니다.</span>`,
+                true,
+                () => {
+                    if (siteData[currentEditingSiteId]) {
+                        siteData[currentEditingSiteId].history = [];
+                        saveStateToFirebase();
+                        window.openModal(currentEditingSiteId); // 모달창 리프레시
+                    }
+                }
+            );
+        };
 
         // --- STREAMING_CHUNK:유틸 및 엑셀 파싱 기능 정의 중... ---
         window.openConfirmDialog = function(title, message, isConfirm, callback = null) {
@@ -766,6 +865,7 @@
             );
         };
 
+        // 엑셀 다운로드는 권한 필요 없음 (누구나 가능)
         window.exportToCSV = function() {
             let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
             csvContent += "구역,사이트명,판매채널,상태,주문자,연락처,숙박인원,결제금액,견종,마리수,메모\n";
