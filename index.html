@@ -227,9 +227,6 @@
                                 <select id="formChannel" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-orange-500 focus:border-orange-500 block p-1.5 font-semibold cursor-pointer outline-none">
                                     <option value="땡큐캠핑">땡큐캠핑</option>
                                     <option value="스노우라인">스노우라인</option>
-                                    <option value="캠핏">캠핏</option>
-                                    <option value="야놀자">야놀자</option>
-                                    <option value="현장/기타">현장/기타</option>
                                 </select>
                             </div>
                         </div>
@@ -486,8 +483,6 @@
         function getChannelBadge(channel) {
             if(channel === '땡큐캠핑') return `<span class="px-1.5 py-0.5 bg-[#f97316] text-white text-[10px] rounded font-bold">땡큐캠핑</span>`;
             if(channel === '스노우라인') return `<span class="px-1.5 py-0.5 bg-slate-700 text-white text-[10px] rounded font-bold">스노우라인</span>`;
-            if(channel === '캠핏') return `<span class="px-1.5 py-0.5 bg-[#14b8a6] text-white text-[10px] rounded font-bold">캠핏</span>`;
-            if(channel === '야놀자') return `<span class="px-1.5 py-0.5 bg-[#ec4899] text-white text-[10px] rounded font-bold">야놀자</span>`;
             return `<span class="px-1.5 py-0.5 bg-gray-400 text-white text-[10px] rounded font-bold">${channel}</span>`;
         }
 
@@ -947,7 +942,7 @@
                 if (!name) return;
 
                 const phone = row['연락처'] || row['전화번호'] || row['핸드폰'] || '';
-                const channel = row['판매채널'] || row['채널'] || row['예약처'] || '현장/기타';
+                const channel = row['판매채널'] || row['채널'] || row['예약처'] || '땡큐캠핑';
                 const status = (statusKor.includes('완료') || statusKor === '결제완료') ? 'completed' : 'pending';
                 const price = parseInt(String(row['결제금액'] || row['금액'] || '0').replace(/[^0-9]/g, ''), 10) || 0;
                 const people = parseInt(String(row['숙박인원'] || row['인원'] || '2').replace(/[^0-9]/g, ''), 10) || 2;
