@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>캠핑장 예약 관리 - 땡큐캠핑 PRO</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SheetJS for Excel Upload -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Pretendard', sans-serif; background-color: #f8fafc; }
+        .site-card { transition: all 0.2s ease-in-out; border: 2px solid transparent; }
+        .site-card:hover { transform: translateY(-3px); box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.1); }
+        .status-badge { transition: background-color 0.2s; }
+        /* 스크롤바 커스텀 (오렌지 테마) */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #fdba74; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #f97316; }
+        
+        .modal-enter { animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes fadeIn { 
+            from { opacity: 0; transform: scale(0.95) translateY(10px); } 
+            to { opacity: 1; transform: scale(1) translateY(0); } 
+        }
+        
+        /* 커스텀 라디오/체크박스 색상 */
+        .accent-orange { accent-color: #f97316; }
+    </style>
+</head>
+<body class="text-gray-800 h-screen flex flex-col overflow-hidden">
+
+    <!-- Navbar -->
+    <nav class="bg-white shadow-sm border-b border-gray-200 z-10 relative">
+        <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <!-- 로고 영역 -->
+                <div class="flex items-center gap-3">
+                    <img src="https://i.postimg.cc/s2CQ8wzb/image-(27).png" alt="땡큐캠핑" class="h-8 object-contain">
+                    <div class="ml-2 border-l-2 border-gray-200 pl-3">
+                        <h1 class="text-lg font-bold text-gray-900 tracking-tight">임실 캠핑오개 <span class="text-orange-500 font-extrabold">예약관리</span></h1>
+                    </div>
+                </div>
+                <!-- 우측 컨트롤 (검색 및 초기화) -->
+                <div class="flex items-center gap-3">
+                    <div class="relative">
+                        <input type="text" id="searchInput" placeholder="예약자명, 연락처 검색..." class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 w-64 transition-all bg-gray-50 shadow-inner">
+                        <i class="fa-solid fa-search absolute left-3.5 top-2.5 text-gray-400 text-sm"></i>
+                    </div>
+                    <button class="bg-white border border-gray-300 p-2 rounded-lg text-gray-600 hover:bg-gray-50 hover:text-orange-500 transition-colors shadow-sm" onclick="requestResetData()" title="데이터 초기화">
+                        <i class="fa-solid fa-rotate-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Layout -->
+    <div class="flex-1 flex overflow-hidden">
+        
+        <!-- Main Content -->
+        <main class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-slate-50">
+            <div class="max-w-[1600px] mx-auto space-y-6">
+                
+                <!-- Dashboard Stats -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-500 font-medium mb-1">총 사이트</p>
+                            <h3 class="text-3xl font-bold text-gray-900" id="stat-total">0<span class="text-lg font-normal text-gray-500 ml-1">개</span></h3>
+                        </div>
+                        <div class="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xl shadow-inner">
+                            <i class="fa-solid fa-layer-group"></i>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-5 shadow-sm border border-orange-100 flex items-center justify-between relative overflow-hidden">
+                        <div class="absolute right-0 top-0 w-24 h-24 bg-orange-50 rounded-full blur-2xl -mr-10 -mt-10"></div>
+                        <div class="relative z-10">
+                            <p class="text-sm text-gray-500 font-medium mb-1">예약 완료</p>
+                            <h3 class="text-3xl font-bold text-orange-600" id="stat-booked">0<span class="text-lg font-normal text-gray-500 ml-1">개</span></h3>
+                        </div>
+                        <div class="relative z-10 w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center text-orange-500 text-xl shadow-sm">
+                            <i class="fa-solid fa-check-double"></i>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-500 font-medium mb-1">결제 대기</p>
+                            <h3 class="text-3xl font-bold text-gray-700" id="stat-pending">0<span class="text-lg font-normal text-gray-500 ml-1">개</span></h3>
+                        </div>
+                        <div class="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center text-gray-500 text-xl">
+                            <i class="fa-solid fa-clock"></i>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-500 font-medium mb-1">예약 가능 (잔여)</p>
+                            <h3 class="text-3xl font-bold text-teal-600" id="stat-available">0<span class="text-lg font-normal text-gray-500 ml-1">개</span></h3>
+                        </div>
+                        <div class="w-12 h-12 bg-teal-50 rounded-xl flex items-center justify-center text-teal-500 text-xl">
+                            <i class="fa-solid fa-map-location-dot"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Zone Tabs & Grid View -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="border-b border-gray-200 bg-white px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+                        <div class="flex flex-wrap gap-2" id="zoneTabs">
+                            <!-- Tabs injected via JS -->
+                        </div>
+                        
+                        <div class="flex items-center gap-4 text-xs font-semibold bg-gray-50 px-4 py-2 rounded-lg">
+                            <div class="flex items-center gap-1.5 text-gray-600"><span class="w-3 h-3 rounded-full bg-white border-2 border-gray-300"></span>빈자리</div>
+                            <div class="flex items-center gap-1.5 text-gray-600"><span class="w-3 h-3 rounded-full bg-gray-100 border-2 border-gray-400"></span>결제대기</div>
+                            <div class="flex items-center gap-1.5 text-gray-600"><span class="w-3 h-3 rounded-full bg-orange-50 border-2 border-orange-500"></span>결제완료</div>
+                        </div>
+                    </div>
+                    
+                    <div class="p-6 bg-slate-50/50">
+                        <div id="siteGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
+                            <!-- Sites injected via JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Data Table View -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-white">
+                        <h2 class="text-lg font-bold text-gray-800"><span id="currentZoneTitle" class="text-orange-600">전체</span> 예약 리스트</h2>
+                        <div class="flex gap-2">
+                            <label for="excelUploadInput" class="cursor-pointer text-sm bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2 shadow-sm font-medium">
+                                <i class="fa-solid fa-file-arrow-up"></i> 엑셀 업로드 (동기화)
+                            </label>
+                            <input type="file" id="excelUploadInput" class="hidden" accept=".xlsx, .xls, .csv" onchange="handleExcelUpload(event)">
+                            <button onclick="exportToCSV()" class="text-sm bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2 shadow-sm font-medium">
+                                <i class="fa-solid fa-file-csv"></i> 엑셀 다운로드
+                            </button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-slate-50">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">사이트</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">상태/채널</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">예약자 정보</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">반려견/인원</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">결제금액</th>
+                                    <th scope="col" class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">관리</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200" id="reservationTableBody">
+                                <!-- Table rows injected via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Reservation Modal -->
+    <div id="resModal" class="fixed inset-0 z-40 hidden flex items-center justify-center p-4">
+        <!-- Background overlay -->
+        <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity" onclick="closeModal()"></div>
+        
+        <!-- Modal Panel -->
+        <div class="modal-enter relative bg-white rounded-2xl text-left shadow-2xl flex flex-col w-full max-w-2xl max-h-[90vh] overflow-hidden">
+            <div class="bg-gradient-to-r from-orange-600 to-orange-500 px-6 py-4 flex justify-between items-center shrink-0">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-pen-to-square"></i> <span id="modalTitle">예약 관리</span>
+                </h3>
+                <button type="button" class="text-white/80 hover:text-white transition-colors p-1" onclick="closeModal()">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            
+            <form id="reservationForm" onsubmit="saveReservation(event)" class="flex flex-col overflow-hidden">
+                <div class="p-6 overflow-y-auto bg-white flex-1 space-y-6 text-sm">
+                    
+                    <!-- Header / Site ID & Status -->
+                    <div class="flex items-center justify-between pb-4 border-b border-gray-100">
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center border-2 border-orange-200">
+                                <span class="text-xl font-black text-orange-600" id="modalSiteId">A-01</span>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500 font-bold uppercase tracking-wider mb-0.5">SITE NO.</p>
+                                <p class="text-sm font-semibold text-gray-700" id="modalZoneName">A존</p>
+                            </div>
+                        </div>
+                        <div class="flex flex-col items-end gap-2">
+                            <div class="flex items-center gap-2">
+                                <label class="text-xs font-bold text-gray-500">예약 상태</label>
+                                <select id="formStatus" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-orange-500 focus:border-orange-500 block p-1.5 font-bold cursor-pointer outline-none">
+                                    <option value="pending" class="text-gray-600">결제 대기</option>
+                                    <option value="completed" class="text-orange-600">결제 완료</option>
+                                </select>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label class="text-xs font-bold text-gray-500">판매 채널</label>
+                                <select id="formChannel" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-orange-500 focus:border-orange-500 block p-1.5 font-semibold cursor-pointer outline-none">
+                                    <option value="땡큐캠핑">땡큐캠핑</option>
+                                    <option value="스노우라인">스노우라인</option>
+                                    <option value="캠핏">캠핏</option>
+                                    <option value="야놀자">야놀자</option>
+                                    <option value="현장/기타">현장/기타</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- User Info -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 mb-1.5">예약자명 <span class="text-red-500">*</span></label>
+                            <input type="text" id="formName" required class="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 mb-1.5">연락처 <span class="text-red-500">*</span></label>
+                            <input type="tel" id="formPhone" required placeholder="010-0000-0000" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all">
+                        </div>
+                    </div>
+
+                    <!-- Price & People -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 mb-1.5">숙박 인원 <span class="text-red-500">*</span></label>
+                            <div class="relative flex items-center">
+                                <button type="button" onclick="adjustCount('formPeople', -1)" class="absolute left-1 w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded-md"><i class="fa-solid fa-minus"></i></button>
+                                <input type="number" id="formPeople" min="1" max="10" value="2" required class="w-full border border-gray-300 rounded-lg px-10 py-2.5 text-center font-bold focus:ring-2 focus:ring-orange-500 outline-none">
+                                <button type="button" onclick="adjustCount('formPeople', 1)" class="absolute right-1 w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded-md"><i class="fa-solid fa-plus"></i></button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 mb-1.5">결제 금액 <span class="text-red-500">*</span></label>
+                            <div class="relative">
+                                <input type="number" id="formPrice" required class="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-orange-500 outline-none text-right pr-8 font-bold text-gray-800">
+                                <span class="absolute right-3 top-2.5 text-gray-500 font-bold">원</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dog Info (Special highlight) -->
+                    <div class="p-4 bg-orange-50/50 rounded-xl border border-orange-100">
+                        <h4 class="text-sm font-bold text-orange-700 mb-3 flex items-center gap-2">
+                            <i class="fa-solid fa-paw"></i> 반려견 정보
+                        </h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div class="sm:col-span-2">
+                                <label class="block text-xs font-bold text-gray-700 mb-1.5">견종 <span class="text-red-500">*</span></label>
+                                <input type="text" id="formDogBreed" placeholder="예: 비숑, 푸들 믹스" required class="w-full border border-gray-300 bg-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 mb-1.5">마리수 <span class="text-red-500">*</span></label>
+                                <div class="relative flex items-center">
+                                    <button type="button" onclick="adjustCount('formDogCount', -1)" class="absolute left-1 w-7 h-7 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded-md"><i class="fa-solid fa-minus text-xs"></i></button>
+                                    <input type="number" id="formDogCount" min="1" max="5" value="1" required class="w-full border border-gray-300 bg-white rounded-lg px-8 py-2 text-center font-bold focus:ring-2 focus:ring-orange-500 outline-none">
+                                    <button type="button" onclick="adjustCount('formDogCount', 1)" class="absolute right-1 w-7 h-7 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded-md"><i class="fa-solid fa-plus text-xs"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Memo -->
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1.5">관리자 메모</label>
+                        <textarea id="formMemo" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500 outline-none" placeholder="고객 요청사항이나 특이사항을 기록하세요."></textarea>
+                    </div>
+
+                    <!-- History Log -->
+                    <div class="pt-4 border-t border-gray-100">
+                        <h4 class="text-xs font-bold text-gray-500 mb-2 flex items-center gap-1.5 uppercase tracking-wider">
+                            <i class="fa-solid fa-clock-rotate-left"></i> 예약 히스토리 로그
+                        </h4>
+                        <div id="modalHistoryLogs" class="bg-gray-50 rounded-lg p-3 max-h-32 overflow-y-auto text-xs space-y-2 border border-gray-100">
+                            <!-- Logs injected here -->
+                            <div class="text-gray-400 text-center py-2">기록이 없습니다.</div>
+                        </div>
+                    </div>
+
+                </div>
+                
+                <div class="bg-gray-50 px-6 py-4 flex items-center justify-between border-t border-gray-200 shrink-0">
+                    <button type="button" id="btnCancelRes" onclick="requestCancelReservation()" class="text-red-600 hover:bg-red-50 hover:text-red-700 text-sm font-bold px-4 py-2 rounded-lg transition-colors hidden flex items-center gap-1.5 border border-transparent hover:border-red-100">
+                        <i class="fa-solid fa-trash-can"></i> 예약 취소
+                    </button>
+                    <div class="flex gap-2 ml-auto">
+                        <button type="button" onclick="closeModal()" class="px-5 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-700 hover:bg-gray-50 shadow-sm transition-colors">
+                            닫기
+                        </button>
+                        <button type="submit" class="px-6 py-2.5 bg-orange-600 border border-transparent rounded-lg text-sm font-bold text-white hover:bg-orange-700 shadow-sm transition-colors flex items-center gap-2">
+                            <i class="fa-solid fa-check"></i> 저장하기
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Custom Confirm Dialog -->
+    <div id="customDialog" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" onclick="closeDialog()"></div>
+        <div class="modal-enter relative bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden text-center p-6">
+            <div id="dialogIcon" class="w-14 h-14 mx-auto rounded-full bg-orange-100 text-orange-500 flex items-center justify-center text-2xl mb-4">
+                <i class="fa-solid fa-circle-exclamation"></i>
+            </div>
+            <h3 id="dialogTitle" class="text-lg font-bold text-gray-900 mb-2">알림</h3>
+            <p id="dialogMessage" class="text-sm text-gray-500 mb-6"></p>
+            <div class="flex justify-center gap-3">
+                <button id="dialogBtnCancel" onclick="closeDialog()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-bold rounded-lg transition-colors hidden">
+                    취소
+                </button>
+                <button id="dialogBtnConfirm" class="px-6 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm font-bold rounded-lg transition-colors shadow-sm">
+                    확인
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. 구역 및 사이트 기본 설정 ---
+        const ZONES = [
+            { id: 'ALL', name: '전체보기', count: 0, prefix: '' },
+            { id: 'A', name: 'A존', count: 11, prefix: 'A-' },
+            { id: 'B', name: 'B존', count: 11, prefix: 'B-' },
+            { id: 'STONE', name: '파쇄석존', count: 5, prefix: 'S-' }, 
+            { id: 'GRASS', name: '잔디존', count: 33, prefix: 'G-' }   
+        ];
+
+        let allSites = [];
+        ZONES.forEach(zone => {
+            if(zone.id === 'ALL') return;
+            for(let i = 1; i <= zone.count; i++) {
+                const numStr = i.toString().padStart(2, '0');
+                allSites.push({
+                    id: `${zone.prefix}${numStr}`,
+                    zoneId: zone.id,
+                    name: `${zone.prefix}${numStr}`
+                });
+            }
+        });
+
+        // --- 2. 상태 관리 (State) ---
+        // 구조 변경: { 'A-01': { current: { name, phone, channel... } | null, history: [ { time, action, msg } ] } }
+        let siteData = {};
+        let currentZoneFilter = 'ALL';
+        let currentSearchTerm = '';
+        let currentEditingSiteId = null;
+        let dialogCallback = null;
+
+        // --- 3. 초기화 및 로컬스토리지 로드 ---
+        function init() {
+            // 구버전 데이터(reservations) 마이그레이션 또는 신규 로드
+            const savedData = localStorage.getItem('imsil_v2_data');
+            
+            if(savedData) {
+                siteData = JSON.parse(savedData);
+            } else {
+                // 초기 샘플 데이터 세팅
+                allSites.forEach(s => {
+                    siteData[s.id] = { current: null, history: [] };
+                });
+                
+                // 일부 사이트 예약 샘플
+                setSampleRes('A-02', '김캠핑', '010-1111-2222', '땡큐캠핑', 'completed', 60000, 4, '골든리트리버', 1, '조기 입실 요청');
+                setSampleRes('B-05', '이멍멍', '010-3333-4444', '스노우라인', 'pending', 50000, 2, '말티즈', 2, '');
+                setSampleRes('S-01', '박파쇄', '010-5555-6666', '현장/기타', 'completed', 55000, 3, '웰시코기', 1, '');
+                
+                saveState();
+            }
+
+            renderTabs();
+            updateUI();
+
+            // 검색 이벤트
+            document.getElementById('searchInput').addEventListener('input', (e) => {
+                currentSearchTerm = e.target.value.toLowerCase();
+                updateUI();
+            });
+        }
+
+        function setSampleRes(id, name, phone, channel, status, price, people, dogBreed, dogCount, memo) {
+            const now = new Date().toLocaleString('ko-KR');
+            siteData[id].current = { name, phone, channel, status, price, people, dogBreed, dogCount, memo };
+            siteData[id].history.push({ time: now, action: '신규예약', msg: `[신규] ${name} (${channel})` });
+        }
+
+        function saveState() {
+            localStorage.setItem('imsil_v2_data', JSON.stringify(siteData));
+        }
+
+        // --- STREAMING_CHUNK:JavaScript - UI 업데이트 및 렌더링 ---
+        // --- 4. 통계 렌더링 ---
+        function updateStats() {
+            const total = allSites.length;
+            let booked = 0;
+            let pending = 0;
+
+            allSites.forEach(site => {
+                const res = siteData[site.id]?.current;
+                if(res) {
+                    if(res.status === 'completed') booked++;
+                    else if(res.status === 'pending') pending++;
+                }
+            });
+
+            const available = total - (booked + pending);
+
+            document.getElementById('stat-total').innerHTML = `${total}<span class="text-sm font-normal text-gray-500 ml-1">개</span>`;
+            document.getElementById('stat-booked').innerHTML = `${booked}<span class="text-sm font-normal text-gray-500 ml-1">개</span>`;
+            document.getElementById('stat-pending').innerHTML = `${pending}<span class="text-sm font-normal text-gray-500 ml-1">개</span>`;
+            document.getElementById('stat-available').innerHTML = `${available}<span class="text-sm font-normal text-gray-500 ml-1">개</span>`;
+        }
+
+        // --- 5. 탭 렌더링 ---
+        function renderTabs() {
+            const container = document.getElementById('zoneTabs');
+            container.innerHTML = '';
+            
+            ZONES.forEach(zone => {
+                const isActive = currentZoneFilter === zone.id;
+                const btn = document.createElement('button');
+                btn.className = `px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm border ${
+                    isActive 
+                    ? 'bg-orange-600 text-white border-orange-600 shadow-md transform scale-105' 
+                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-orange-500'
+                }`;
+                let countStr = zone.count > 0 ? ` <span class="text-xs opacity-80 font-normal">(${zone.count})</span>` : '';
+                btn.innerHTML = `${zone.name}${countStr}`;
+                btn.onclick = () => {
+                    currentZoneFilter = zone.id;
+                    const zoneObj = ZONES.find(z => z.id === currentZoneFilter);
+                    document.getElementById('currentZoneTitle').innerText = zoneObj.name;
+                    renderTabs();
+                    updateUI();
+                };
+                container.appendChild(btn);
+            });
+        }
+
+        function updateUI() {
+            updateStats();
+            let filteredSites = allSites;
+            
+            if(currentZoneFilter !== 'ALL') {
+                filteredSites = filteredSites.filter(site => site.zoneId === currentZoneFilter);
+            }
+            if(currentSearchTerm) {
+                filteredSites = filteredSites.filter(site => {
+                    if(site.name.toLowerCase().includes(currentSearchTerm)) return true;
+                    const res = siteData[site.id]?.current;
+                    if(res && (res.name.toLowerCase().includes(currentSearchTerm) || res.phone.includes(currentSearchTerm))) return true;
+                    return false;
+                });
+            }
+            renderGrid(filteredSites);
+            renderTable(filteredSites);
+        }
+
+        // --- STREAMING_CHUNK:JavaScript - 그리드 및 리스트 생성 ---
+        // --- 6. 그리드 생성 ---
+        function renderGrid(sites) {
+            const container = document.getElementById('siteGrid');
+            container.innerHTML = '';
+
+            if(sites.length === 0) {
+                container.innerHTML = `<div class="col-span-full text-center py-12 text-gray-400 font-medium">검색 결과가 없습니다.</div>`;
+                return;
+            }
+
+            sites.forEach(site => {
+                const data = siteData[site.id] || { current: null };
+                const res = data.current;
+                
+                const el = document.createElement('div');
+                el.className = 'site-card cursor-pointer rounded-xl bg-white p-3 flex flex-col justify-between h-28 relative overflow-hidden group';
+                el.onclick = () => openModal(site.id);
+
+                if(!res) {
+                    // 빈자리
+                    el.classList.add('border-gray-200', 'hover:border-teal-400', 'shadow-sm');
+                    el.innerHTML = `
+                        <div class="flex justify-between items-start">
+                            <span class="font-bold text-gray-700 text-lg">${site.name}</span>
+                        </div>
+                        <div class="text-center mt-2 text-gray-300 group-hover:text-teal-400 transition-colors">
+                            <i class="fa-solid fa-plus text-xl"></i>
+                        </div>
+                    `;
+                } else {
+                    // 예약됨
+                    const isPending = res.status === 'pending';
+                    const bgClass = isPending ? 'bg-gray-50 border-gray-300' : 'bg-orange-50 border-orange-300';
+                    const nameColor = isPending ? 'text-gray-700' : 'text-orange-900';
+                    
+                    // 채널 뱃지
+                    let chBadge = '';
+                    if(res.channel === '땡큐캠핑') chBadge = '<span class="px-1.5 py-0.5 bg-[#f97316] text-white text-[10px] rounded font-bold">땡큐</span>';
+                    else if(res.channel === '스노우라인') chBadge = '<span class="px-1.5 py-0.5 bg-slate-700 text-white text-[10px] rounded font-bold">스노</span>';
+                    else chBadge = `<span class="px-1.5 py-0.5 bg-gray-200 text-gray-600 text-[10px] rounded font-bold">${res.channel.substring(0,2)}</span>`;
+
+                    el.className = `site-card cursor-pointer rounded-xl p-3 flex flex-col justify-between h-28 relative overflow-hidden shadow-sm ${bgClass}`;
+                    
+                    el.innerHTML = `
+                        <i class="fa-solid fa-tent absolute -bottom-3 -right-2 text-5xl opacity-5 text-black"></i>
+                        <div class="flex justify-between items-start relative z-10">
+                            <span class="font-bold ${nameColor} text-lg">${site.name}</span>
+                            ${chBadge}
+                        </div>
+                        <div class="mt-auto relative z-10 line-clamp-2">
+                            <p class="font-bold text-gray-800 text-sm truncate">${res.name} <span class="font-normal text-xs text-gray-500">${res.people}명</span></p>
+                            <p class="text-xs font-semibold text-gray-600 truncate flex items-center gap-1 mt-0.5">
+                                <i class="fa-solid fa-paw text-orange-400 text-[10px]"></i> ${res.dogBreed}(${res.dogCount})
+                            </p>
+                        </div>
+                    `;
+                }
+                container.appendChild(el);
+            });
+        }
+
+        // --- 7. 리스트 뷰 생성 ---
+        function renderTable(sites) {
+            const tbody = document.getElementById('reservationTableBody');
+            tbody.innerHTML = '';
+
+            if(sites.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-12 text-center text-sm text-gray-400">데이터가 없습니다.</td></tr>`;
+                return;
+            }
+
+            sites.forEach(site => {
+                const data = siteData[site.id] || { current: null };
+                const res = data.current;
+                
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-orange-50/50 transition-colors cursor-pointer border-b border-gray-100 last:border-0';
+                tr.onclick = (e) => {
+                    if(!e.target.closest('button')) openModal(site.id);
+                };
+                
+                if(!res) {
+                    // 빈자리
+                    tr.innerHTML = `
+                        <td class="px-6 py-3 whitespace-nowrap"><span class="font-bold text-gray-700">${site.name}</span></td>
+                        <td class="px-6 py-3 whitespace-nowrap"><span class="px-2 py-1 inline-flex text-xs leading-5 font-bold rounded-md bg-gray-100 text-gray-500">예약가능</span></td>
+                        <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-300">-</td>
+                        <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-300">-</td>
+                        <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-300">-</td>
+                        <td class="px-6 py-3 whitespace-nowrap text-right text-sm font-medium">
+                            <button onclick="openModal('${site.id}'); event.stopPropagation();" class="text-teal-600 hover:text-teal-900 bg-teal-50 px-3 py-1.5 rounded-md border border-teal-200 text-xs font-bold transition-colors">예약등록</button>
+                        </td>
+                    `;
+                } else {
+                    const isPending = res.status === 'pending';
+                    const statusKor = isPending ? '결제대기' : '결제완료';
+                    const statusColor = isPending ? 'bg-gray-100 text-gray-700' : 'bg-orange-100 text-orange-700';
+                    
+                    tr.innerHTML = `
+                        <td class="px-6 py-3 whitespace-nowrap">
+                            <span class="font-bold text-gray-900 text-base">${site.name}</span>
+                            ${res.memo ? `<br><span class="text-[10px] bg-yellow-100 text-yellow-800 px-1.5 rounded mt-1 inline-block truncate max-w-[100px]" title="${res.memo}"><i class="fa-solid fa-comment-dots"></i> 메모있음</span>` : ''}
+                        </td>
+                        <td class="px-6 py-3 whitespace-nowrap">
+                            <div class="flex flex-col gap-1 items-start">
+                                <span class="px-2 py-0.5 inline-flex text-xs font-bold rounded ${statusColor}">${statusKor}</span>
+                                <span class="text-xs font-medium text-gray-500">${res.channel}</span>
+                            </div>
+                        </td>
+                        <td class="px-6 py-3 whitespace-nowrap">
+                            <div class="text-sm font-bold text-gray-900">${res.name}</div>
+                            <div class="text-xs text-gray-500 font-medium">${res.phone}</div>
+                        </td>
+                        <td class="px-6 py-3 whitespace-nowrap">
+                            <div class="text-sm text-gray-800 font-bold"><i class="fa-solid fa-paw text-orange-400 mr-1 text-[10px]"></i>${res.dogBreed} <span class="text-xs font-normal text-gray-500">(${res.dogCount}마리)</span></div>
+                            <div class="text-xs text-gray-500 font-medium mt-0.5">성인 등 ${res.people}명</div>
+                        </td>
+                        <td class="px-6 py-3 whitespace-nowrap">
+                            <div class="text-sm font-bold text-gray-800">${res.price.toLocaleString()}원</div>
+                        </td>
+                        <td class="px-6 py-3 whitespace-nowrap text-right text-sm font-medium">
+                            <button onclick="openModal('${site.id}'); event.stopPropagation();" class="text-orange-600 hover:text-orange-900 bg-orange-50 px-3 py-1.5 rounded-md border border-orange-200 text-xs font-bold transition-colors">상세관리</button>
+                        </td>
+                    `;
+                }
+                tbody.appendChild(tr);
+            });
+        }
+
+        // --- STREAMING_CHUNK:JavaScript - 모달 및 저장/취소 로직 ---
+        // --- 8. 숫자 조절 유틸 ---
+        function adjustCount(id, delta) {
+            const input = document.getElementById(id);
+            let val = parseInt(input.value) || 1;
+            val += delta;
+            if(val >= input.min && val <= input.max) input.value = val;
+        }
+
+        // --- 9. 모달 로직 ---
+        function openModal(siteId) {
+            currentEditingSiteId = siteId;
+            const siteInfo = allSites.find(s => s.id === siteId);
+            const data = siteData[siteId] || { current: null, history: [] };
+            const res = data.current;
+            
+            document.getElementById('modalSiteId').innerText = siteId;
+            document.getElementById('modalZoneName').innerText = siteInfo ? ZONES.find(z => z.id === siteInfo.zoneId).name : '';
+            document.getElementById('modalTitle').innerText = res ? '예약 상세 및 수정' : '신규 예약 등록';
+            
+            // 폼 채우기
+            document.getElementById('formName').value = res ? res.name : '';
+            document.getElementById('formPhone').value = res ? res.phone : '';
+            document.getElementById('formPrice').value = res ? res.price : '';
+            document.getElementById('formPeople').value = res ? res.people : '2';
+            document.getElementById('formDogBreed').value = res ? res.dogBreed : '';
+            document.getElementById('formDogCount').value = res ? res.dogCount : '1';
+            document.getElementById('formStatus').value = res ? res.status : 'completed';
+            document.getElementById('formChannel').value = res ? res.channel : '땡큐캠핑';
+            document.getElementById('formMemo').value = res ? res.memo : '';
+
+            // 버튼 상태
+            const btnCancel = document.getElementById('btnCancelRes');
+            if(res) btnCancel.classList.remove('hidden');
+            else btnCancel.classList.add('hidden');
+
+            // 히스토리 렌더링
+            const historyContainer = document.getElementById('modalHistoryLogs');
+            historyContainer.innerHTML = '';
+            if(data.history && data.history.length > 0) {
+                // 최신순 정렬
+                const sorted = [...data.history].reverse();
+                sorted.forEach(log => {
+                    const actionColor = log.action.includes('취소') ? 'text-red-500' : (log.action.includes('신규') ? 'text-teal-600' : 'text-orange-500');
+                    historyContainer.innerHTML += `
+                        <div class="flex justify-between items-start pb-2 border-b border-gray-100 last:border-0 last:pb-0">
+                            <div>
+                                <span class="font-bold ${actionColor} mr-1">[${log.action}]</span>
+                                <span class="text-gray-700 font-medium">${log.msg}</span>
+                            </div>
+                            <span class="text-[10px] text-gray-400 whitespace-nowrap ml-2">${log.time}</span>
+                        </div>
+                    `;
+                });
+            } else {
+                historyContainer.innerHTML = `<div class="text-gray-400 text-center py-2">히스토리 기록이 없습니다.</div>`;
+            }
+
+            document.getElementById('resModal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('resModal').classList.add('hidden');
+            currentEditingSiteId = null;
+        }
+
+        function saveReservation(e) {
+            e.preventDefault();
+            if(!currentEditingSiteId) return;
+
+            const newRes = {
+                name: document.getElementById('formName').value,
+                phone: document.getElementById('formPhone').value,
+                price: parseInt(document.getElementById('formPrice').value, 10),
+                people: parseInt(document.getElementById('formPeople').value, 10),
+                dogBreed: document.getElementById('formDogBreed').value,
+                dogCount: parseInt(document.getElementById('formDogCount').value, 10),
+                status: document.getElementById('formStatus').value,
+                channel: document.getElementById('formChannel').value,
+                memo: document.getElementById('formMemo').value,
+            };
+
+            const now = new Date().toLocaleString('ko-KR');
+            let data = siteData[currentEditingSiteId];
+            if(!data) data = { current: null, history: [] };
+            
+            const isEdit = !!data.current;
+            const actionLabel = isEdit ? '정보수정' : '신규예약';
+            const logMsg = `${newRes.name}님 (${newRes.channel})`;
+
+            data.current = newRes;
+            data.history.push({ time: now, action: actionLabel, msg: logMsg });
+            
+            siteData[currentEditingSiteId] = data;
+            saveState();
+            
+            updateUI();
+            closeModal();
+            openConfirmDialog('성공', '저장되었습니다.', false);
+        }
+
+        function requestCancelReservation() {
+            openConfirmDialog(
+                '예약 취소', 
+                `[${currentEditingSiteId}] 사이트 예약을 취소하시겠습니까?<br><span class="text-xs text-red-500 mt-1 block">※ 취소 기록은 히스토리에 남습니다.</span>`, 
+                true, 
+                executeCancel
+            );
+        }
+
+        function executeCancel() {
+            if(!currentEditingSiteId) return;
+            const now = new Date().toLocaleString('ko-KR');
+            let data = siteData[currentEditingSiteId];
+            
+            if(data && data.current) {
+                const name = data.current.name;
+                data.history.push({ time: now, action: '예약취소', msg: `${name}님 예약 취소처리` });
+                data.current = null;
+                saveState();
+                updateUI();
+                closeModal();
+                openConfirmDialog('성공', '예약이 취소되었습니다.', false);
+            }
+        }
+
+        // --- STREAMING_CHUNK:JavaScript - 다이얼로그 및 기타 유틸 ---
+        // --- 10. 커스텀 다이얼로그 (alert/confirm 대체) ---
+        function openConfirmDialog(title, message, isConfirm, callback = null) {
+            document.getElementById('dialogTitle').innerText = title;
+            document.getElementById('dialogMessage').innerHTML = message;
+            
+            const btnCancel = document.getElementById('dialogBtnCancel');
+            const btnConfirm = document.getElementById('dialogBtnConfirm');
+            const icon = document.getElementById('dialogIcon');
+
+            if(isConfirm) {
+                btnCancel.classList.remove('hidden');
+                icon.className = "w-14 h-14 mx-auto rounded-full bg-red-100 text-red-500 flex items-center justify-center text-2xl mb-4";
+                icon.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
+                btnConfirm.className = "px-6 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-lg transition-colors shadow-sm";
+            } else {
+                btnCancel.classList.add('hidden');
+                icon.className = "w-14 h-14 mx-auto rounded-full bg-green-100 text-green-500 flex items-center justify-center text-2xl mb-4";
+                icon.innerHTML = '<i class="fa-solid fa-check"></i>';
+                btnConfirm.className = "px-6 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm font-bold rounded-lg transition-colors shadow-sm";
+            }
+
+            dialogCallback = callback;
+            
+            // 기존 이벤트 리스너 제거 방식을 위해 클론 사용 (간단한 구현)
+            const newBtn = btnConfirm.cloneNode(true);
+            btnConfirm.parentNode.replaceChild(newBtn, btnConfirm);
+            
+            newBtn.addEventListener('click', () => {
+                if(dialogCallback) dialogCallback();
+                closeDialog();
+            });
+
+            document.getElementById('customDialog').classList.remove('hidden');
+        }
+
+        function closeDialog() {
+            document.getElementById('customDialog').classList.add('hidden');
+            dialogCallback = null;
+        }
+
+        function requestResetData() {
+            openConfirmDialog(
+                '데이터 초기화', 
+                '모든 예약 데이터와 히스토리를 초기화하시겠습니까?<br><b class="text-red-500">복구할 수 없습니다.</b>', 
+                true, 
+                () => {
+                    localStorage.removeItem('imsil_v2_data');
+                    siteData = {};
+                    init();
+                }
+            );
+        }
+
+        // CSV 내보내기 (채널 정보 추가)
+        function exportToCSV() {
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+            csvContent += "구역,사이트명,판매채널,상태,주문자,연락처,숙박인원,결제금액,견종,마리수,메모\n";
+
+            allSites.forEach(site => {
+                const res = siteData[site.id]?.current;
+                if(res) {
+                    const statusKor = res.status === 'completed' ? '결제완료' : '결제대기';
+                    const memo = res.memo ? res.memo.replace(/,/g, ' ') : '';
+                    const row = `${site.zoneId},${site.name},${res.channel},${statusKor},${res.name},${res.phone},${res.people},${res.price},${res.dogBreed},${res.dogCount},${memo}`;
+                    csvContent += row + "\n";
+                }
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            const date = new Date().toISOString().slice(0, 10);
+            link.setAttribute("download", `캠핑오개_예약명단_${date}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // --- STREAMING_CHUNK:JavaScript - 엑셀 업로드 및 파싱 (SheetJS) ---
+        function handleExcelUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const json = XLSX.utils.sheet_to_json(worksheet);
+
+                    processExcelData(json);
+                } catch (err) {
+                    console.error(err);
+                    openConfirmDialog('업로드 오류', '엑셀 파일을 읽는 중 오류가 발생했습니다.<br>올바른 파일(xlsx, csv)인지 확인해주세요.', false);
+                } finally {
+                    event.target.value = ''; // Input 초기화
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function processExcelData(data) {
+            const now = new Date().toLocaleString('ko-KR');
+            let updateCount = 0;
+            let cancelCount = 0;
+
+            data.forEach(row => {
+                // 다운로드 받은 양식과 동일한 헤더 매칭
+                const rawSiteName = row['사이트명'] || row['사이트'] || row['Site'];
+                if (!rawSiteName) return;
+
+                const site = allSites.find(s => s.name === rawSiteName || s.id === rawSiteName);
+                if (!site) return; // 매칭되지 않는 사이트는 패스
+                const siteId = site.id;
+
+                const name = row['주문자'] || row['예약자명'] || row['예약자'] || row['이름'] || '';
+                const statusKor = row['상태'] || row['예약상태'] || row['상태구분'] || '';
+                
+                if (!siteData[siteId]) siteData[siteId] = { current: null, history: [] };
+                
+                // [1] 취소 처리 로직 (엑셀에 취소 상태로 기재된 경우)
+                if (statusKor.includes('취소')) {
+                    if (siteData[siteId].current && (siteData[siteId].current.name === name || !name)) {
+                         siteData[siteId].history.push({ time: now, action: '엑셀(취소)', msg: `${siteData[siteId].current.name}님 예약 취소 (엑셀동기화)` });
+                         siteData[siteId].current = null;
+                         cancelCount++;
+                    }
+                    return; // 취소 처리 후 다음 행으로
+                }
+
+                if (!name) return; // 취소도 아니고 이름도 없으면 빈 데이터 행이므로 패스
+
+                // [2] 데이터 정제
+                const phone = row['연락처'] || row['전화번호'] || row['핸드폰'] || '';
+                const channel = row['판매채널'] || row['채널'] || row['예약처'] || '현장/기타';
+                const status = (statusKor.includes('완료') || statusKor === '결제완료') ? 'completed' : 'pending';
+                
+                // 숫자형 데이터 예외처리 정제
+                const price = parseInt(String(row['결제금액'] || row['금액'] || '0').replace(/[^0-9]/g, ''), 10) || 0;
+                const people = parseInt(String(row['숙박인원'] || row['인원'] || '2').replace(/[^0-9]/g, ''), 10) || 2;
+                const dogCount = parseInt(String(row['마리수'] || row['반려견수'] || '1').replace(/[^0-9]/g, ''), 10) || 1;
+                const dogBreed = row['견종'] || row['반려견종'] || '';
+                const memo = row['메모'] || row['요청사항'] || '';
+
+                const newRes = { name, phone, channel, status, price, people, dogBreed, dogCount, memo };
+                const existing = siteData[siteId].current;
+                
+                // [3] 신규 덮어쓰기 혹은 정보 갱신 판별
+                if (!existing) {
+                    siteData[siteId].current = newRes;
+                    siteData[siteId].history.push({ time: now, action: '엑셀(신규)', msg: `${name}님 (${channel}) 엑셀 예약생성` });
+                    updateCount++;
+                } else if (
+                    existing.name !== name || 
+                    existing.status !== status || 
+                    existing.channel !== channel ||
+                    existing.price !== price ||
+                    existing.memo !== memo
+                ) {
+                    // 예약자명이 바뀌었으면 이전사람 덮어쓰기 (재예약) 로그 추가
+                    if (existing.name !== name) {
+                        siteData[siteId].history.push({ time: now, action: '엑셀(덮어쓰기)', msg: `[${existing.name}] → [${name}] 변경` });
+                    }
+                    siteData[siteId].current = newRes;
+                    siteData[siteId].history.push({ time: now, action: '엑셀(수정)', msg: `${name}님 정보 갱신 (엑셀동기화)` });
+                    updateCount++;
+                }
+            });
+
+            // 변경사항이 있을 때만 저장 및 UI 업데이트
+            if (updateCount > 0 || cancelCount > 0) {
+                saveState();
+                updateUI();
+                openConfirmDialog(
+                    '동기화 완료', 
+                    `엑셀 데이터가 성공적으로 반영되었습니다.<br><span class="text-xs text-gray-500 font-semibold mt-1 inline-block">신규/수정 반영: ${updateCount}건 | 취소 반영: ${cancelCount}건</span>`, 
+                    false
+                );
+            } else {
+                openConfirmDialog('동기화 알림', '새롭게 변경되거나 갱신할 데이터가 없습니다.', false);
+            }
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
