@@ -447,8 +447,12 @@
                 }, (error) => {
                     console.error("Firestore error:", error);
                     if (error.code === 'permission-denied') {
-                        document.getElementById('cloudStatus').innerHTML = `<i class="fa-solid fa-triangle-exclamation text-red-500"></i> 접근 차단 (기간만료 등)`;
-                        window.openConfirmDialog('접근 권한 없음 (또는 6개월 기간 만료)', '데이터베이스 접근 권한이 없거나 <b>6개월 사용 기간이 만료</b>되었습니다.<br>Firebase 콘솔에서 보안 규칙(Rules)의 만료 날짜를 연장해주세요.', false);
+                        document.getElementById('cloudStatus').innerHTML = `<i class="fa-solid fa-triangle-exclamation text-red-500"></i> 권한 없음`;
+                        window.openConfirmDialog(
+                            '데이터 접근 차단 (Firebase 규칙 미설정)', 
+                            '데이터베이스 읽기/쓰기 권한이 없습니다.<br><br><b>[해결방법]</b><br>Firebase 콘솔 > <b>Firestore Database</b> > <b>Rules(규칙)</b> 탭에 코드를 붙여넣고 <b>[게시(Publish)]</b> 버튼을 눌러주세요.<br>(또는 6개월 기한이 만료되었을 수 있습니다.)', 
+                            false
+                        );
                     } else {
                         document.getElementById('cloudStatus').innerHTML = `<i class="fa-solid fa-cloud-xmark text-red-500"></i> 연결 끊김`;
                     }
@@ -468,7 +472,11 @@
             } catch (error) {
                 console.error("Error saving state:", error);
                 if (error.code === 'permission-denied') {
-                    window.openConfirmDialog('저장 실패 (기간 만료)', '6개월 사용 기간이 만료되었거나 권한이 없습니다.<br>Firebase 콘솔의 Firestore 보안 규칙을 확인해주세요.', false);
+                    window.openConfirmDialog(
+                        '저장 실패 (권한 없음)', 
+                        'Firebase <b>Firestore 규칙(Rules)</b>이 설정되지 않았거나 6개월 사용 기간이 만료되었습니다. 콘솔에서 <b>[게시]</b>를 눌렀는지 확인해주세요.', 
+                        false
+                    );
                 }
                 document.getElementById('cloudStatus').innerHTML = `<i class="fa-solid fa-cloud-xmark text-red-500"></i> 저장 실패`;
             }
