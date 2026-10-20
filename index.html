@@ -132,11 +132,11 @@
                 <!-- Channel Sales Stats & Settlement -->
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <!-- 땡큐캠핑 -->
-                    <div class="bg-white rounded-2xl p-5 shadow-sm border border-orange-100">
-                        <div class="flex items-center justify-between mb-3">
-                            <div>
-                                <p class="text-sm text-gray-500 font-medium mb-1">땡큐캠핑 판매수</p>
-                                <h3 class="text-2xl font-bold text-orange-600" id="stat-ty-total">0<span class="text-sm font-normal text-gray-500 ml-1">건</span></h3>
+                    <div class="bg-white rounded-2xl p-5 shadow-sm border border-orange-200">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center gap-2">
+                                <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center text-orange-500"><i class="fa-solid fa-tent"></i></div>
+                                <h3 class="font-bold text-gray-800">땡큐캠핑 판매수</h3>
                             </div>
                             <div class="text-right">
                                 <p class="text-xs text-gray-500 font-medium">총 판매금액</p>
@@ -158,10 +158,10 @@
                     </div>
                     <!-- 스노우라인 -->
                     <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                        <div class="flex items-center justify-between mb-3">
-                            <div>
-                                <p class="text-sm text-gray-500 font-medium mb-1">스노우라인 판매수</p>
-                                <h3 class="text-2xl font-bold text-slate-700" id="stat-sl-total">0<span class="text-sm font-normal text-gray-500 ml-1">건</span></h3>
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center gap-2">
+                                <div class="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500"><i class="fa-solid fa-campground"></i></div>
+                                <h3 class="font-bold text-gray-800">스노우라인 판매수</h3>
                             </div>
                             <div class="text-right">
                                 <p class="text-xs text-gray-500 font-medium">총 판매금액</p>
@@ -567,12 +567,10 @@
             const total = allSites.length;
             let booked = 0, pending = 0;
             
-            // 채널별 판매 통계 변수
+            // 채널별 판매 통계 및 구역별 카운트 변수
             let tyCount = 0, tyAmount = 0;
-            let slCount = 0, slAmount = 0;
-            
-            // 구역별 판매 통계 변수
             let tyZones = { A: 0, B: 0, STONE: 0, GRASS: 0 };
+            let slCount = 0, slAmount = 0;
             let slZones = { A: 0, B: 0, STONE: 0, GRASS: 0 };
 
             allSites.forEach(site => {
@@ -581,22 +579,16 @@
                     if(res.status === 'completed') booked++;
                     else if(res.status === 'pending') pending++;
                     
-                    // 채널별 합산 로직
+                    // 채널별 합산 및 구역별 카운트 로직
                     const price = parseInt(res.price, 10) || 0;
                     if(res.channel === '땡큐캠핑') {
                         tyCount++;
                         tyAmount += price;
-                        if(site.zoneId === 'A') tyZones.A++;
-                        else if(site.zoneId === 'B') tyZones.B++;
-                        else if(site.zoneId === 'STONE') tyZones.STONE++;
-                        else if(site.zoneId === 'GRASS') tyZones.GRASS++;
+                        if(tyZones[site.zoneId] !== undefined) tyZones[site.zoneId]++;
                     } else if(res.channel === '스노우라인') {
                         slCount++;
                         slAmount += price;
-                        if(site.zoneId === 'A') slZones.A++;
-                        else if(site.zoneId === 'B') slZones.B++;
-                        else if(site.zoneId === 'STONE') slZones.STONE++;
-                        else if(site.zoneId === 'GRASS') slZones.GRASS++;
+                        if(slZones[site.zoneId] !== undefined) slZones[site.zoneId]++;
                     }
                 }
             });
@@ -607,37 +599,24 @@
             document.getElementById('stat-pending').innerHTML = `${pending}<span class="text-sm font-normal text-gray-500 ml-1">개</span>`;
             document.getElementById('stat-available').innerHTML = `${available}<span class="text-sm font-normal text-gray-500 ml-1">개</span>`;
 
-            // 플랫폼별 상세 통계 UI 업데이트
-            if(document.getElementById('stat-ty-total-zone')) {
-                // 💡 [버그 수정] 상단 메인 판매수 업데이트 누락 해결
-                document.getElementById('stat-ty-count').innerHTML = `${tyCount}<span class="text-lg font-normal text-gray-500 ml-1">건</span>`;
-                document.getElementById('stat-sl-count').innerHTML = `${slCount}<span class="text-lg font-normal text-gray-500 ml-1">건</span>`;
-
-                // 땡큐캠핑 업데이트
-                document.getElementById('stat-ty-total-zone').innerText = `${tyCount}건`;
-                document.getElementById('stat-ty-a').innerText = tyZones.A;
-                document.getElementById('stat-ty-b').innerText = tyZones.B;
-                document.getElementById('stat-ty-stone').innerText = tyZones.STONE;
-                document.getElementById('stat-ty-grass').innerText = tyZones.GRASS;
+            // 채널별 통계 및 구역별 판매 카운트 UI 업데이트
+            if(document.getElementById('stat-ty-count')) {
+                document.getElementById('stat-ty-count').innerText = `${tyCount}건`;
                 document.getElementById('stat-ty-price').innerHTML = `${tyAmount.toLocaleString()}<span class="text-sm font-normal text-gray-500 ml-1">원</span>`;
-
-                // 스노우라인 업데이트
-                document.getElementById('stat-sl-total-zone').innerText = `${slCount}건`;
-                document.getElementById('stat-sl-a').innerText = slZones.A;
-                document.getElementById('stat-sl-b').innerText = slZones.B;
-                document.getElementById('stat-sl-stone').innerText = slZones.STONE;
-                document.getElementById('stat-sl-grass').innerText = slZones.GRASS;
+                document.getElementById('stat-ty-zones').innerHTML = `<span>A존: ${tyZones.A}</span><span>B존: ${tyZones.B}</span><span>파쇄석: ${tyZones.STONE}</span><span>잔디: ${tyZones.GRASS}</span>`;
+                
+                document.getElementById('stat-sl-count').innerText = `${slCount}건`;
                 document.getElementById('stat-sl-price').innerHTML = `${slAmount.toLocaleString()}<span class="text-sm font-normal text-gray-500 ml-1">원</span>`;
+                document.getElementById('stat-sl-zones').innerHTML = `<span>A존: ${slZones.A}</span><span>B존: ${slZones.B}</span><span>파쇄석: ${slZones.STONE}</span><span>잔디: ${slZones.GRASS}</span>`;
 
-                // 정산 계산
-                const fee = tyAmount * 0.10; // 수수료 10%
-                const slPayout = tyAmount - fee; // 스노우라인 정산금액
-                const adRevenue = 1000000; // 광고료 100만원
-                const totalRevenue = fee + adRevenue; // 최종 금액
+                // 정산 요약 로직 계산
+                const tySettlement = Math.floor(tyAmount * 0.9); // 스노우라인 정산금액 (90%)
+                const tyProfit = Math.floor(tyAmount * 0.1);    // 땡큐캠핑 수익 (10%)
+                const finalAmount = tyProfit + 1000000;         // 최종 금액 (수익 + 광고비 100만)
 
-                document.getElementById('stat-fee').innerText = `${fee.toLocaleString()} 원`;
-                document.getElementById('stat-sl-payout').innerText = `${slPayout.toLocaleString()} 원`;
-                document.getElementById('stat-total-revenue').innerText = `${totalRevenue.toLocaleString()} 원`;
+                document.getElementById('stat-settlement').innerHTML = `${tySettlement.toLocaleString()}<span class="text-base font-normal text-blue-400 ml-1">원</span>`;
+                document.getElementById('stat-profit').innerHTML = `${tyProfit.toLocaleString()}<span class="text-base font-normal text-emerald-400 ml-1">원</span>`;
+                document.getElementById('stat-final').innerHTML = `${finalAmount.toLocaleString()}<span class="text-base font-normal text-white/70 ml-1">원</span>`;
             }
 
             // 탭에 잔여 숫자 갱신
@@ -1008,22 +987,22 @@
         window.exportToCSV = function() {
             let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
             
-            // 대시보드 요약 정보 추가
-            csvContent += "[대시보드 요약]\n";
-            
-            const tyTotal = document.getElementById('stat-ty-total')?.innerText.replace(/[^0-9]/g, '') || 0;
-            const tyPrice = document.getElementById('stat-ty-price')?.innerText.replace(/[^0-9]/g, '') || 0;
-            csvContent += `땡큐캠핑 판매수,${tyTotal}건,판매금액,${tyPrice}원\n`;
-            
-            const tyZones = document.getElementById('stat-ty-zones')?.innerText || '';
-            csvContent += `땡큐캠핑 구역별,${tyZones.replace(/,/g, ' ')}\n\n`;
-            
-            const slTotal = document.getElementById('stat-sl-total')?.innerText.replace(/[^0-9]/g, '') || 0;
-            const slPrice = document.getElementById('stat-sl-price')?.innerText.replace(/[^0-9]/g, '') || 0;
-            csvContent += `스노우라인 판매수,${slTotal}건,판매금액,${slPrice}원\n`;
-            
-            const slZones = document.getElementById('stat-sl-zones')?.innerText || '';
-            csvContent += `스노우라인 구역별,${slZones.replace(/,/g, ' ')}\n\n`;
+            // 통계를 위한 사전 계산 로직
+            let tyCount = 0, tyAmount = 0, tyZones = { A: 0, B: 0, STONE: 0, GRASS: 0 };
+            let slCount = 0, slAmount = 0, slZones = { A: 0, B: 0, STONE: 0, GRASS: 0 };
+
+            allSites.forEach(site => {
+                const res = siteData[site.id]?.current;
+                if(res) {
+                    const price = parseInt(res.price, 10) || 0;
+                    if(res.channel === '땡큐캠핑') {
+                        tyCount++; tyAmount += price; if(tyZones[site.zoneId] !== undefined) tyZones[site.zoneId]++;
+                    } else if(res.channel === '스노우라인') {
+                        slCount++; slAmount += price; if(slZones[site.zoneId] !== undefined) slZones[site.zoneId]++;
+                    }
+                }
+            });
+
             const tySettlement = Math.floor(tyAmount * 0.9);
             const tyProfit = Math.floor(tyAmount * 0.1);
             const finalAmount = tyProfit + 1000000;
